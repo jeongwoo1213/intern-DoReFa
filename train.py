@@ -33,7 +33,7 @@ def train():
 
     label = torch.floor(torch.rand(batch_size)*num_classes).long()
 
-    for epoch in range(epochs):
+    for epoch in range(1,epochs+1):
         x = x.to(device)
         label = label.to(device)
         
@@ -53,7 +53,7 @@ def train():
         r_optimizer.step()
         q_optimizer.step()
 
-        if epoch % 10 == 0:
+        if (epoch) % 10 == 0:
            print(f'epoch {epoch}   r loss {r_loss.item()}    q loss {q_loss.item()}')
            
 
