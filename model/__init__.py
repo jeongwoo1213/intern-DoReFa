@@ -1,2 +1,2 @@
-from testmodel import *
-from resnet import *
+from .testmodel import *
+from .resnet import *
