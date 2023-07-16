@@ -6,7 +6,7 @@ from torch import Tensor
 
 
 
-def _quantize(k:int)->Tensor:
+def _quantize(k:int) -> Tensor:
     class quantize(torch.autograd.Function):
 
         @staticmethod
@@ -25,7 +25,7 @@ def _quantize(k:int)->Tensor:
             return r_o
 
         @staticmethod
-        def backward(ctx, g_o:Tensor)->Tensor:
+        def backward(ctx, g_o:Tensor) -> Tensor:
             return g_o.clone()
     
     return quantize().apply
@@ -41,7 +41,7 @@ class _quantize_weight(nn.Module):
         self.quantize = _quantize(self.k)
 
 
-    def forward(self, r_i:Tensor)->Tensor:
+    def forward(self, r_i:Tensor) -> Tensor:
         '''
         quantize weight to k-bits
         '''
@@ -71,7 +71,7 @@ class quantize_activation(nn.Module):
         self.quantize = _quantize(self.k)
 
 
-    def forward(self, r_i:Tensor)->Tensor:
+    def forward(self, r_i:Tensor) -> Tensor:
         '''
         quantize activations to k-bits
         '''
@@ -131,7 +131,7 @@ class QuantizedLinear(nn.Linear):
         self.q_weight = _quantize_weight(self.k)
 
 
-    def forward(self, x:Tensor)->Tensor:
+    def forward(self, x:Tensor) -> Tensor:
         quantized_weight = self.q_weight(self.weight)
 
         return F.linear(
