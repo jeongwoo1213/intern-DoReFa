@@ -129,6 +129,7 @@ class QuantizedLinear(nn.Linear):
 
         self.k = k
         self.q_weight = _quantize_weight(self.k)
+        
 
 
     def forward(self, x:Tensor) -> Tensor:
@@ -139,3 +140,4 @@ class QuantizedLinear(nn.Linear):
             weight=quantized_weight,
             bias=self.bias,
         )
+    
