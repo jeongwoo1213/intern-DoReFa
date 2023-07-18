@@ -7,6 +7,7 @@ import torch.optim as optim
 
 from utils import *
 
+__all__ = ['R_Test','Q_Test']
 
 class R_Test(nn.Module):
     def __init__(self, num_classes:int) -> None:
