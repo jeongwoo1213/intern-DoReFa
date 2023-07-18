@@ -2,8 +2,11 @@ import os
 import time
 import argparse
 
+import torch
+import torch.nn as nn
+import torch.optim as optim
 
-from model import *
+from model import Resnet20, QResnet20
 
 
 # train setting
@@ -11,13 +14,13 @@ def train():
     epochs = 100
     lr = 1e-3
 
-    batch_size = 128
+    batch_size = 16
     num_classes = 10
 
-    x = torch.rand(batch_size,1,28,28)
+    x = torch.rand(batch_size,3,32,32)
 
-    r_model = R_Test(num_classes=num_classes)
-    q_model = Q_Test(num_classes=num_classes)
+    r_model = Resnet20()
+    q_model = QResnet20()
 
     r_criterion = nn.CrossEntropyLoss()
     q_criterion = nn.CrossEntropyLoss()
@@ -35,7 +38,9 @@ def train():
 
     for epoch in range(1,epochs+1):
         x = x.to(device)
+        # x_prime = x.clone().to(device)
         label = label.to(device)
+        # label_prime = label.clone().to(device)
         
         
         r_pred = r_model(x)
@@ -63,26 +68,5 @@ def train():
 
 
 if __name__=="__main__":
-    # x = torch.rand(1,1,28,28)
-
-    # # print(torch.mean(x))
-
-    # model = Test(num_classes=5)
-
-
-
-    # print(model(x))
-
-    # x = np.array([[0.9296, 0.8788, 0.4283],
-    #       [0.2223, 0.5305, 0.3603],
-    #       [0.3625, 0.1576, 0.0012]])
-    
-    # z = np.array([[-0.2056, -0.2056,  0.2056],
-    #       [ 0.2056,  0.2056, -0.2056],
-    #       [ 0.2056,  0.2056,  0.2056]])
-    
-    
-    # # print(x*z)
-    # # print(np.sum(x*z))
 
     train()
