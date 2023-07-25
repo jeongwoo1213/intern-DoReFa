@@ -5,11 +5,15 @@ import torch.nn.init as init
 
 from utils import *
 
-__all__ = ['Resnet20','QResnet20']
+
+__all__ = ['ResNet20','QResNet20']
+
+
+# https://github.com/akamaster/pytorch_resnet_cifar10/blob/master/resnet.py
+# https://github.com/cvlab-yonsei/EWGS/blob/main/CIFAR10/custom_models.py
+
 
 def _weights_init(m):
-    classname = m.__class__.__name__
-    #print(classname)
     if isinstance(m, nn.Linear) or isinstance(m, nn.Conv2d):
         init.kaiming_normal_(m.weight)
 
@@ -25,7 +29,7 @@ class LambdaLayer(nn.Module):
 class BasicBlock(nn.Module):
     expansion = 1
 
-    def __init__(self, in_planes, planes, stride=1, option='A'):
+    def __init__(self, in_planes, planes, args, stride=1, option='A'):
         super(BasicBlock, self).__init__()
         self.conv1 = nn.Conv2d(in_planes, planes, kernel_size=3, stride=stride, padding=1, bias=False)
         self.bn1 = nn.BatchNorm2d(planes)
@@ -53,15 +57,18 @@ class BasicBlock(nn.Module):
         out = F.relu(out)
         return out
 
+
 class QBlock(nn.Module):
     expansion = 1
 
-    def __init__(self, in_planes, planes, stride=1, option='A'):
+    def __init__(self, in_planes, planes, args, stride=1, option='A'):
         super(QBlock, self).__init__()
-        self.conv1 = QuantizedConv2d(in_planes, planes, kernel_size=3, stride=stride, padding=1, bias=False)
+        self.conv1 = QuantizedConv2d(in_planes, planes, kernel_size=3, stride=stride, padding=1, bias=False, k=args.weight_bits)
         self.bn1 = nn.BatchNorm2d(planes)
-        self.conv2 = QuantizedConv2d(planes, planes, kernel_size=3, stride=1, padding=1, bias=False)
+        self.conv2 = QuantizedConv2d(planes, planes, kernel_size=3, stride=1, padding=1, bias=False, k=args.weight_bits)
         self.bn2 = nn.BatchNorm2d(planes)
+
+        self.qact = QuantizedActivations(args.act_bits)
 
         self.shortcut = nn.Sequential()
         if stride != 1 or in_planes != planes:
@@ -73,75 +80,56 @@ class QBlock(nn.Module):
                                             F.pad(x[:, :, ::2, ::2], (0, 0, 0, 0, planes//4, planes//4), "constant", 0))
             elif option == 'B':
                 self.shortcut = nn.Sequential(
-                     nn.Conv2d(in_planes, self.expansion * planes, kernel_size=1, stride=stride, bias=False),
+                     QuantizedConv2d(in_planes, self.expansion * planes, kernel_size=1, stride=stride, bias=False, k=args.weight_bits),
                      nn.BatchNorm2d(self.expansion * planes)
                 )
 
     def forward(self, x):
         out = F.relu(self.bn1(self.conv1(x)))
+        out = self.qact(out)
         out = self.bn2(self.conv2(out))
+        out = self.qact(out)
         out += self.shortcut(x)
         out = F.relu(out)
         return out
 
+
 class ResNet(nn.Module):
-    def __init__(self, block, num_blocks, num_classes=10):
+    def __init__(self, block, num_blocks, args):
         super(ResNet, self).__init__()
+        self.args = args
         self.in_planes = 16
+
+        self.quantized = True if block is QBlock else False
 
         self.conv1 = nn.Conv2d(3, 16, kernel_size=3, stride=1, padding=1, bias=False)
         self.bn1 = nn.BatchNorm2d(16)
-        self.layer1 = self._make_layer(block, 16, num_blocks[0], stride=1)
-        self.layer2 = self._make_layer(block, 32, num_blocks[1], stride=2)
-        self.layer3 = self._make_layer(block, 64, num_blocks[2], stride=2)
-        self.linear = nn.Linear(64, num_classes)
+        self.layer1 = self._make_layer(block, 16, num_blocks[0], 1)
+        self.layer2 = self._make_layer(block, 32, num_blocks[1], 2)
+        self.layer3 = self._make_layer(block, 64, num_blocks[2], 2)
+        self.linear = nn.Linear(64, args.num_classes)
+
+        self.qact = QuantizedActivations(args.act_bits)
 
         self.apply(_weights_init)
+
 
     def _make_layer(self, block, planes, num_blocks, stride):
         strides = [stride] + [1]*(num_blocks-1)
         layers = []
         for stride in strides:
-            layers.append(block(self.in_planes, planes, stride))
+            layers.append(block(self.in_planes, planes, self.args, stride))
             self.in_planes = planes * block.expansion
 
         return nn.Sequential(*layers)
 
-    def forward(self, x):
-        out = F.relu(self.bn1(self.conv1(x)))
-        out = self.layer1(out)
-        out = self.layer2(out)
-        out = self.layer3(out)
-        out = F.avg_pool2d(out, out.size()[3])
-        out = out.view(out.size(0), -1)
-        out = self.linear(out)
-        return out
-
-class QResNet(nn.Module):
-    def __init__(self, block, num_blocks, num_classes=10):
-        super(QResNet, self).__init__()
-        self.in_planes = 16
-
-        self.conv1 = nn.Conv2d(3, 16, kernel_size=3, stride=1, padding=1, bias=False)
-        self.bn1 = nn.BatchNorm2d(16)
-        self.layer1 = self._make_layer(block, 16, num_blocks[0], stride=1)
-        self.layer2 = self._make_layer(block, 32, num_blocks[1], stride=2)
-        self.layer3 = self._make_layer(block, 64, num_blocks[2], stride=2)
-        self.linear = nn.Linear(64, num_classes)
-
-        self.apply(_weights_init)
-
-    def _make_layer(self, block, planes, num_blocks, stride):
-        strides = [stride] + [1]*(num_blocks-1)
-        layers = []
-        for stride in strides:
-            layers.append(block(self.in_planes, planes, stride))
-            self.in_planes = planes * block.expansion
-
-        return nn.Sequential(*layers)
 
     def forward(self, x):
         out = F.relu(self.bn1(self.conv1(x)))
+
+        if self.quantized:
+            out = self.qact(out)
+
         out = self.layer1(out)
         out = self.layer2(out)
         out = self.layer3(out)
@@ -151,19 +139,16 @@ class QResNet(nn.Module):
         return out
 
 
-def Resnet20():
-    return ResNet(BasicBlock,[3,3,3])
 
-def QResnet20():
-    return QResNet(QBlock, [3,3,3])
+def ResNet20(args) -> nn.Module:
+    '''
+    return ResNet20 
+    '''
+    return ResNet(BasicBlock,[3,3,3], args)
 
+def QResNet20(args) -> nn.Module:
+    '''
+    return quantized ResNet20
+    '''
+    return ResNet(QBlock, [3,3,3], args)
 
-if __name__=='__main__':
-
-    x = torch.rand(1,3,224,224)
-
-    blocks = [2,2,2,2]
-
-    model = Resnet20()
-
-    print(model(x))
