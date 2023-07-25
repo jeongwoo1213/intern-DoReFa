@@ -3,7 +3,8 @@ import numpy as np
 
 import torch
 import torch.nn as nn
-import torch.optim as optim
+
+from torch import Tensor
 
 from utils import *
 
@@ -49,7 +50,7 @@ class Q_Test(nn.Module):
         self.fc1 = nn.Linear(128,num_classes)
 
         self.relu = nn.ReLU(inplace=True)
-        self.activation = quantize_activation(k=a_bit)
+        self.activation = QuantizedActivations(k=a_bit)
 
 
     def forward(self, x:Tensor) -> Tensor:
