@@ -4,7 +4,7 @@ import torch.nn.functional as F
 
 from torch import Tensor
 
-
+__all__ = ['QuantizedConv2d','QuantizedLinear','QuantizedActivations']
 
 def _quantize(k:int) -> Tensor:
     class quantize(torch.autograd.Function):
@@ -63,12 +63,12 @@ class _quantize_weight(nn.Module):
 
 
 
-class quantize_activation(nn.Module):
+class QuantizedActivations(nn.Module):
 
-    def __init__(self, k) -> None:
-        super(quantize_activation,self).__init__()
-        self.k = k
-        self.quantize = _quantize(self.k)
+    def __init__(self, k:int=2) -> None:
+        super(QuantizedActivations,self).__init__()
+        
+        self.quantize = _quantize(k)
 
 
     def forward(self, r_i:Tensor) -> Tensor:
