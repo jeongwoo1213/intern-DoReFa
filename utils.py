@@ -91,13 +91,10 @@ class QuantizedConv2d(nn.Conv2d):
                  dilation: int = 1,
                  groups: int = 1,
                  bias: bool = True,
-                 padding_mode: str = 'zeros',
-                 device = None,
-                 dtype=None,
                  k: int = 1) -> None:
         
         super(QuantizedConv2d, self).__init__(
-            in_channels, out_channels, kernel_size, stride, padding, dilation, groups, bias, padding_mode, device, dtype)
+            in_channels, out_channels, kernel_size, stride, padding, dilation, groups, bias)
 
         self.k = k
         self.q_weight = _quantize_weight(self.k)
