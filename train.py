@@ -32,6 +32,9 @@ if args.dataset == 'cifar10':
 elif args.dataset == 'cifar100':
     args.num_classes = 100
 
+os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
+os.environ["CUDA_VISIBLE_DEVICES"] = "2"
+
 # train setting
 def train():
     
@@ -48,8 +51,7 @@ def train():
     r_optimizer = optim.Adam(params=r_model.parameters(), lr=args.lr)
     q_optimizer = optim.Adam(params=q_model.parameters(), lr=args.lr)
 
-    # device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    device = torch.device("cpu")
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     r_model.to(device)
     q_model.to(device)
