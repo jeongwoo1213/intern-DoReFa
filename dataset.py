@@ -22,13 +22,13 @@ transform_test = transforms.Compose([
 def trainloader(args):
 
     if args.dataset == 'cifar10':
-        train_dataset = datasets.CIFAR10(root='../data/CIFAR10/',
+        train_dataset = datasets.CIFAR10(root='../dataset/CIFAR10/',
                                 train=True, 
                                 transform=transform_train,
                                 download=True)
         
     elif args.dataset == 'cifar100':
-        train_dataset = datasets.CIFAR100(root='../data/CIFAR100/',
+        train_dataset = datasets.CIFAR100(root='../dataset/CIFAR100/',
                                 train=True, 
                                 transform=transform_train,
                                 download=True)
@@ -47,12 +47,12 @@ def trainloader(args):
 
 def testloader(args):
     if args.dataset == 'cifar10':
-        test_dataset = datasets.CIFAR10(root='../data/CIFAR10/',
+        test_dataset = datasets.CIFAR10(root='../dataset/CIFAR10/',
                                         train=False, 
                                         transform=transform_test)
         
     elif args.dataset == 'cifar100':
-        test_dataset = datasets.CIFAR100(root='../data/CIFAR100/',
+        test_dataset = datasets.CIFAR100(root='../dataset/CIFAR100/',
                                         train=False, 
                                         transform=transform_test)
     
