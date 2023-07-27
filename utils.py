@@ -38,7 +38,7 @@ class _quantize_weight(nn.Module):
     def __init__(self, k:int) -> None:
         super(_quantize_weight, self).__init__()
         self.k = k
-        self.quantize = _quantize(self.k)
+        self.quantize = _quantize(k)
 
 
     def forward(self, r_i:Tensor) -> Tensor:
@@ -47,15 +47,13 @@ class _quantize_weight(nn.Module):
         '''
 
         if self.k==1:
-            E = torch.mean(torch.abs(r_i))
-            r_o = E * torch.sign(r_i)
-        
-        elif self.k==32:
-            r_o = r_i
-        
+            E = torch.mean(torch.abs(r_i)).detach()
+            r_o = E * self.quantize(r_i / E)
+                    
         else:
             tanh = torch.tanh(r_i)
-            clip = tanh / (2*torch.max(torch.abs(tanh))) + 0.5
+            max = torch.max(torch.abs(tanh)).detach()
+            clip = tanh / (2*max) + 0.5
             r_o = 2 * self.quantize(clip) - 1
 
         return r_o
@@ -68,6 +66,7 @@ class QuantizedActivations(nn.Module):
     def __init__(self, k:int=2) -> None:
         super(QuantizedActivations,self).__init__()
         
+        self.k = k
         self.quantize = _quantize(k)
 
 
@@ -75,8 +74,12 @@ class QuantizedActivations(nn.Module):
         '''
         quantize activations to k-bits
         '''
+        if self.k==32:
+            r_o = r_i
+        else:
+            r_o = self.quantize(torch.clamp(r_i,0,1))
         
-        return self.quantize(r_i)
+        return r_o
 
 
 
