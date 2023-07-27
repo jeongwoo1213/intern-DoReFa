@@ -13,9 +13,10 @@ from dataset import *
 parser = argparse.ArgumentParser(description="PyTorch Implementation of DoReFa-Net")
 
 # argument for train settings
-parser.add_argument('--epochs', type=int, default=100, help='num of epochs')
+parser.add_argument('--epochs', type=int, default=200, help='num of epochs')
 parser.add_argument('--lr', type=float, default=1e-3, help='learning rate')
-parser.add_argument('--batch_size', type=int, default=1, help='batch size')
+parser.add_argument('--weight_decay', type=float, default=1e-4, help='weight decay')
+parser.add_argument('--batch_size', type=int, default=256, help='batch size')
 parser.add_argument('--dataset', type=str, default='cifar10', choices=('cifar10','cifar100'), help='dataset to use CIFAR10|CIFAR100')
 parser.add_argument('--num_workers', type=int, default=4, help='number of data loading workers size')
 
@@ -53,7 +54,7 @@ def train():
     q_criterion = nn.CrossEntropyLoss()
 
     # r_optimizer = optim.Adam(params=r_model.parameters(), lr=args.lr)
-    q_optimizer = optim.Adam(params=q_model.parameters(), lr=args.lr)
+    q_optimizer = optim.Adam(params=q_model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
 
 
 
@@ -85,23 +86,28 @@ def train():
 
 
         # print(f'epoch {epoch:<3}    fp loss {r_loss.item():<25}  q loss {q_loss.item()}')
-        print(f'epoch {epoch:<3}    q loss {q_loss.item()}')
+        if epoch % 5 == 0: 
+            print(f'epoch {epoch:<3}    q loss {q_loss.item()}')
         
-        if epoch % 10 == 0:
+        if epoch % 20 == 0:
             
             # r_model.eval()
             q_model.eval()
 
-            correct = 0
-            total = 0
+            r_correct, q_correct = 0, 0
+            r_total, q_total = 0, 0
             with torch.no_grad():
-                for images, labels in testloader:
-                    outputs = q_model(images)
-                    _, predicted = torch.max(outputs.data, 1)
-                    total += labels.size(0)
-                    correct += (predicted == labels).sum().item()
+                for images, labels in test_loader:
+                    
+                    images = images.to(device)
+                    labels = labels.to(device)
 
-            print(f'Accuracy of quantized network: {100 * correct / total} %')
+                    q_outputs = q_model(images)
+                    _,q_predicted = torch.max(q_outputs.data, 1)
+                    q_total += labels.size(0)
+                    q_correct += (q_predicted == labels).sum().item()
+
+            print(f'Accuracy of quantized network: {100 * q_correct / q_total:.2f} %\n')
 
 if __name__=='__main__':
     train()
