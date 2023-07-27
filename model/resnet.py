@@ -14,7 +14,7 @@ __all__ = ['ResNet20','QResNet20']
 
 
 def _weights_init(m):
-    if isinstance(m, nn.Linear) or isinstance(m, nn.Conv2d):
+    if isinstance(m, nn.Linear) or isinstance(m, nn.Conv2d) or isinstance(m, QuantizedConv2d):
         init.kaiming_normal_(m.weight)
 
 class LambdaLayer(nn.Module):
@@ -85,10 +85,12 @@ class QBlock(nn.Module):
                 )
 
     def forward(self, x):
+        out = self.qact(x)
         out = F.relu(self.bn1(self.conv1(x)))
+
         out = self.qact(out)
         out = self.bn2(self.conv2(out))
-        out = self.qact(out)
+
         out += self.shortcut(x)
         out = F.relu(out)
         return out
@@ -108,9 +110,7 @@ class ResNet(nn.Module):
         self.layer2 = self._make_layer(block, 32, num_blocks[1], 2)
         self.layer3 = self._make_layer(block, 64, num_blocks[2], 2)
         self.linear = nn.Linear(64, args.num_classes)
-
-        self.qact = QuantizedActivations(args.act_bits)
-
+        self.bn2 = nn.BatchNorm1d(64)
         self.apply(_weights_init)
 
 
@@ -126,15 +126,12 @@ class ResNet(nn.Module):
 
     def forward(self, x):
         out = F.relu(self.bn1(self.conv1(x)))
-
-        if self.quantized:
-            out = self.qact(out)
-
         out = self.layer1(out)
         out = self.layer2(out)
         out = self.layer3(out)
         out = F.avg_pool2d(out, out.size()[3])
         out = out.view(out.size(0), -1)
+        out = self.bn2(out)
         out = self.linear(out)
         return out
 
