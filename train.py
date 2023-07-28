@@ -56,7 +56,7 @@ def train():
     # r_optimizer = optim.Adam(params=r_model.parameters(), lr=args.lr)
     q_optimizer = optim.Adam(params=q_model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
 
-
+    accuracy_list = []
 
     # train
     for epoch in range(1,args.epochs+1):
@@ -107,7 +107,12 @@ def train():
                     q_total += labels.size(0)
                     q_correct += (q_predicted == labels).sum().item()
 
-            print(f'Accuracy of quantized network: {100 * q_correct / q_total:.2f} %\n')
+            accuracy = 100 * q_correct / q_total
+            accuracy_list.append(accuracy)
+            print(f'Accuracy of quantized network: {accuracy:.2f} %\n')
+
+    print(f'best accuracy of W{args.weight_bits}A{args.act_bits}: {max(accuracy_list):.2f}')
+
 
 if __name__=='__main__':
     train()
