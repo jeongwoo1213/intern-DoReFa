@@ -36,11 +36,10 @@ def trainloader(args):
 
     
     train_loader = torch.utils.data.DataLoader(dataset=train_dataset,
-                                               batch_size=args.batch_size,
-                                               shuffle=True,
-                                               num_workers=args.num_workers)
+                                            batch_size=args.batch_size,
+                                            shuffle=True,
+                                            num_workers=args.num_workers)
     
-    print(f'number of train data: {len(train_loader)}')
     return train_loader
 
 
@@ -57,11 +56,10 @@ def testloader(args):
                                         transform=transform_test)
     
     test_loader = torch.utils.data.DataLoader(dataset=test_dataset,
-                                              batch_size=100,
-                                              shuffle=False,
-                                              num_workers=args.num_workers)
+                                            batch_size=100,
+                                            shuffle=False,
+                                            num_workers=args.num_workers)
     
-    print(f'number of test data: {len(test_loader)}')
     return test_loader
 
 
