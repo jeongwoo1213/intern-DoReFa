@@ -2,6 +2,8 @@ import os
 import time
 import argparse
 
+from tqdm import tqdm
+
 import torch
 import torch.nn as nn
 import torch.optim as optim
@@ -25,6 +27,10 @@ parser.add_argument('--num_workers', type=int, default=4, help='number of data l
 parser.add_argument('--weight_bits', type=int, default=1, help='weights quantization bits')
 parser.add_argument('--act_bits', type=int, default=2, help='activations quantization bits')
 
+# misc
+parser.add_argument('--gpu_id', type=str, default='2', help='target GPU to use')
+
+
 args = parser.parse_args()
 
 
@@ -34,13 +40,17 @@ elif args.dataset == 'cifar100':
     args.num_classes = 100
 
 os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
-os.environ["CUDA_VISIBLE_DEVICES"] = "2"
+os.environ["CUDA_VISIBLE_DEVICES"] = args.gpu_id
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-# train setting
+
+log_dir = f'../results/ResNet20_{args.dataset}/W{args.weight_bits}A{args.act_bits}'
+if not os.path.exists(log_dir):
+    os.makedirs(os.path.join(log_dir, 'checkpoint'))
+
+# train
 def train():
     
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-
     train_loader = trainloader(args)
     test_loader = testloader(args)
 
@@ -56,10 +66,14 @@ def train():
     # r_optimizer = optim.Adam(params=r_model.parameters(), lr=args.lr)
     q_optimizer = optim.Adam(params=q_model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
 
-    accuracy_list = []
+    best_accuracy = 0
 
     # train
-    for epoch in range(1,args.epochs+1):
+    start = time.time()
+    
+    print("============== START TRAINING ==============")
+    
+    for epoch in range(1, args.epochs+1):
         
         # r_model.train()
         q_model.train()
@@ -84,36 +98,50 @@ def train():
             # r_optimizer.step()
             q_optimizer.step()
 
+        # validation
 
-        # print(f'epoch {epoch:<3}    fp loss {r_loss.item():<25}  q loss {q_loss.item()}')
+        # r_model.eval()
+        q_model.eval()
+
+        r_correct, q_correct = 0, 0
+        r_total, q_total = 0, 0
+        with torch.no_grad():
+            for images, labels in test_loader:
+                
+                images = images.to(device)
+                labels = labels.to(device)
+
+                q_outputs = q_model(images)
+                _,q_predicted = torch.max(q_outputs.data, 1)
+                q_total += labels.size(0)
+                q_correct += (q_predicted == labels).sum().item()
+
+        accuracy = 100 * q_correct / q_total
+        best_accuracy = max(accuracy, best_accuracy)
+                
+        if accuracy == best_accuracy:
+            best_accuracy = accuracy
+            torch.save({
+                'epoch':epoch,
+                'model':q_model.state_dict(),
+                'q_optimizer':q_optimizer.state_dict(),
+                'criterion':q_criterion.state_dict()
+            }, os.path.join(log_dir,'checkpoint/best_checkpoint.pth'))
+
+
+
+        # print(f'epoch {epoch:<3}    fp loss {r_loss.item():<25}  q loss {q_loss.item()}')        
         if epoch % 5 == 0: 
-            print(f'epoch {epoch:<3}    q loss {q_loss.item()}')
+            elapsed_time = time.ctime(time.time() - start).split(' ')[4]
+            print(f'Epoch {epoch:<3}    q loss {q_loss.item()}  time {elapsed_time}')
         
         if epoch % 20 == 0:
-            
-            # r_model.eval()
-            q_model.eval()
-
-            r_correct, q_correct = 0, 0
-            r_total, q_total = 0, 0
-            with torch.no_grad():
-                for images, labels in test_loader:
-                    
-                    images = images.to(device)
-                    labels = labels.to(device)
-
-                    q_outputs = q_model(images)
-                    _,q_predicted = torch.max(q_outputs.data, 1)
-                    q_total += labels.size(0)
-                    q_correct += (q_predicted == labels).sum().item()
-
-            accuracy = 100 * q_correct / q_total
-            accuracy_list.append(accuracy)
             print(f'Accuracy of quantized network: {accuracy:.2f} %\n')
 
-    print(f'best accuracy of W{args.weight_bits}A{args.act_bits}: {max(accuracy_list):.2f}')
+
+
+    print(f'best accuracy of W{args.weight_bits}A{args.act_bits}: {best_accuracy:.2f}')
 
 
 if __name__=='__main__':
     train()
-
