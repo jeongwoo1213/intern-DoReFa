@@ -44,7 +44,7 @@ os.environ["CUDA_VISIBLE_DEVICES"] = args.gpu_id
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
-log_dir = f'../results/ResNet20_{args.dataset}/W{args.weight_bits}A{args.act_bits}'
+log_dir = f'../results/dorefa/ResNet20_{args.dataset}/W{args.weight_bits}A{args.act_bits}'
 if not os.path.exists(log_dir):
     os.makedirs(os.path.join(log_dir, 'checkpoint'))
 
